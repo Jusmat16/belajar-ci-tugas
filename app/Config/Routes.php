@@ -45,3 +45,6 @@ $routes->get('checkout', 'TransaksiController::checkout', ['filter' => 'auth']);
 $routes->get('get-location', 'TransaksiController::getLocation', ['filter' => 'auth']); // Tambahan 1
 $routes->get('get-cost', 'TransaksiController::getCost', ['filter' => 'auth']); // Tambahan 1
 $routes->post('buy', 'TransaksiController::buy', ['filter' => 'auth']); // Tambahan 1
+
+$routes->get('profile', 'Home::profile', ['filter' => 'auth']); // Tahapan 2
+$routes->resource('api', ['controller' => 'apiController']); // Tahapan 2
