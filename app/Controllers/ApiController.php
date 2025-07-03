@@ -9,24 +9,27 @@ use CodeIgniter\RESTful\ResourceController;
 use App\Models\UserModel;
 use App\Models\TransactionModel;
 use App\Models\TransactionDetailModel;
-
+use App\Models\ProductModel;
 
 class ApiController extends ResourceController
 {
     // Tahapan 2
     protected $apiKey;
-    protected $userModel;
-    protected $transactionModel;
-    protected $transactionDetailModel;
+    protected $user;
+    protected $transaction;
+    protected $transaction_detail;
+    protected $product;
 
     function __construct()
     {
         // Tahapan 2
         $this->apiKey = env('API_KEY');
-        $this->userModel = new UserModel();
-        $this->transactionModel = new TransactionModel();
-        $this->transactionDetailModel = new TransactionDetailModel();
+        $this->user = new UserModel();
+        $this->transaction = new TransactionModel();
+        $this->transaction_detail = new TransactionDetailModel();
+        $this->product = new ProductModel();
     }
+
     /**
      * Return an array of resource objects, themselves in array format.
      *
@@ -50,7 +53,29 @@ class ApiController extends ResourceController
                 $penjualan = $this->transaction->findAll();
 
                 foreach ($penjualan as &$pj) {
-                    $pj['details'] = $this->transaction_detail->where('transaction_id', $pj['id'])->findAll();
+                    // Ambil detail transaksi
+                    $details = $this->transaction_detail->where('transaction_id', $pj['id'])->findAll();
+                    
+                    // Hitung total item dan total diskon
+                    $totalItem = 0;
+                    $totalDiskon = 0;
+                    
+                    foreach ($details as &$detail) {
+                        // Ambil data produk untuk setiap detail
+                        $produk = $this->product->find($detail['product_id']);
+                        if ($produk) {
+                            $detail['nama_produk'] = $produk['nama'];
+                            $detail['foto_produk'] = $produk['foto'];
+                            $detail['harga_produk'] = $produk['harga'];
+                        }
+                        
+                        $totalItem += $detail['jumlah'];
+                        $totalDiskon += $detail['diskon'] * $detail['jumlah'];
+                    }
+                    
+                    $pj['details'] = $details;
+                    $pj['total_item'] = $totalItem;
+                    $pj['total_diskon'] = $totalDiskon;
                 }
 
                 $data['status'] = ["code" => 200, "description" => "OK"];

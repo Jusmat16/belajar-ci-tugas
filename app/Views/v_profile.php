@@ -1,5 +1,5 @@
 <!-- Tahapan 2 -->
-<?= $this->extend('layout') ?>
+ <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 History Transaksi Pembelian <strong><?= $username ?></strong>
 <hr>

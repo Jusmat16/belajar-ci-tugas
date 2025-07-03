@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Controllers;
 
 use App\Models\TransactionModel;
@@ -35,14 +36,37 @@ class TransaksiController extends BaseController
 
     public function cart_add()
     {
+        $hargaAsli = $this->request->getPost('harga');
+        $diskonNominal = session()->get('diskon_nominal') ?: 0;
+        
+        // Hitung harga setelah diskon
+        $hargaSetelahDiskon = $hargaAsli - $diskonNominal;
+        
+        // Pastikan harga tidak negatif
+        if ($hargaSetelahDiskon < 0) {
+            $hargaSetelahDiskon = 0;
+        }
+
         $this->cart->insert(array(
             'id'        => $this->request->getPost('id'),
             'qty'       => 1,
-            'price'     => $this->request->getPost('harga'),
+            'price'     => $hargaSetelahDiskon, // Gunakan harga setelah diskon
             'name'      => $this->request->getPost('nama'),
-            'options'   => array('foto' => $this->request->getPost('foto'))
+            'options'   => array(
+                'foto' => $this->request->getPost('foto'),
+                'harga_asli' => $hargaAsli, // Simpan harga asli untuk referensi
+                'diskon' => $diskonNominal, // Simpan nominal diskon
+                'harga_setelah_diskon' => $hargaSetelahDiskon
+            )
         ));
-        session()->setflashdata('success', 'Produk berhasil ditambahkan ke keranjang. (<a href="' . base_url() . 'keranjang">Lihat</a>)');
+
+        $pesan = 'Produk berhasil ditambahkan ke keranjang.';
+        if ($diskonNominal > 0) {
+            $pesan .= ' Anda mendapat diskon ' . number_to_currency($diskonNominal, 'IDR') . '!';
+        }
+        $pesan .= ' (<a href="' . base_url() . 'keranjang">Lihat</a>)';
+
+        session()->setflashdata('success', $pesan);
         return redirect()->to(base_url('/'));
     }
 
@@ -160,13 +184,19 @@ class TransaksiController extends BaseController
 
             $last_insert_id = $this->transactionModel->getInsertID();
 
+            // Ambil nominal diskon dari session
+            $diskonNominal = session()->get('diskon_nominal') ?: 0;
+
             foreach ($this->cart->contents() as $value) {
+                // Hitung subtotal dengan harga yang sudah didiskon
+                $subtotalHarga = $value['qty'] * $value['price'];
+
                 $dataFormDetail = [
                     'transaction_id' => $last_insert_id,
                     'product_id' => $value['id'],
                     'jumlah' => $value['qty'],
-                    'diskon' => 0,
-                    'subtotal_harga' => $value['qty'] * $value['price'],
+                    'diskon' => $diskonNominal, // Simpan nominal diskon per item
+                    'subtotal_harga' => $subtotalHarga, // Subtotal sudah termasuk diskon
                     'created_at' => date("Y-m-d H:i:s"),
                     'updated_at' => date("Y-m-d H:i:s")
                 ];
@@ -175,6 +205,13 @@ class TransaksiController extends BaseController
             }
 
             $this->cart->destroy();
+
+            // Set pesan sukses dengan informasi diskon
+            if ($diskonNominal > 0) {
+                session()->setFlashdata('success', 'Transaksi berhasil! Anda telah mendapat diskon ' . number_to_currency($diskonNominal, 'IDR') . ' per item.');
+            } else {
+                session()->setFlashdata('success', 'Transaksi berhasil!');
+            }
 
             return redirect()->to(base_url());
         }
